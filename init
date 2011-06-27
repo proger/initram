@@ -63,4 +63,4 @@ fi
 #		/bin/busybox umount /${d}
 #	fi
 #done
-exec env -i TERM=$TERM /lib/ld-linux.so /sbin/switch_root /new_root ${init} "$@"
+exec env -i TERM=$TERM /lib/ld-linux.so.2 /sbin/switch_root /new_root ${init} "$@"
