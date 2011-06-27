@@ -1,0 +1,66 @@
+#!/bin/busybox ash
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+export mount="/bin/busybox mount"
+
+# install busybox applets as symlinks
+/bin/busybox --install -s
+
+. /init_functions
+
+$mount -t proc proc /proc -o nosuid,noexec,nodev
+$mount -t sysfs sys /sys -o nosuid,noexec,nodev
+if grep -q devtmpfs /proc/filesystems 2>/dev/null; then
+	$mount -n -t devtmpfs udev /dev -o mode=0755,size=10M,nosuid
+	devtmpfs_mounted=1
+else
+	$mount -n -t tmpfs udev /dev -o mode=0755,size=10M,nosuid
+	devtmpfs_mounted=0
+	/bin/mknod /dev/null c 1 3
+	/bin/mknod /dev/zero c 1 5
+	/bin/mknod /dev/console c 5 1
+fi
+$mount -t tmpfs run /run -o nosuid,noexec,nodev,mode=755,size=10M
+
+# create block nodes in /dev
+for devnode in /sys/block/*/dev /sys/block/*/*/dev; do
+	mm=`cat $devnode`
+	maj=${mm%:*}
+	min=${mm#*:}
+	dirname=`dirname $devnode`
+	name=${dirname##*/}
+	/bin/mknod /dev/$name b $maj $min
+done
+
+init="/sbin/init"
+
+# set default mount handler
+mount_handler="default_mount_handler"
+
+# parse the kernel command line
+parse_cmdline
+
+# Mount root at /new_root
+mkdir -p /new_root
+${mount_handler} /new_root
+
+if [ "$(stat -c %D /)" = "$(stat -c %D /new_root)" ]; then
+	err "Failed to mount the real root device."
+	echo "Bailing out, you are on your own. Good luck."
+	echo
+	launch_interactive_shell --exec
+elif [ ! -x "/new_root${init}" ]; then
+	err "Root device mounted successfully, but ${init} does not exist."
+	echo "Bailing out, you are on your own. Good luck."
+	echo
+	launch_interactive_shell --exec
+fi
+
+#for d in proc sys dev run; do
+#	if [ -d /new_root/${d} ]; then
+#		$mount --move /${d} /new_root/${d}
+#	else
+#		/bin/busybox umount /${d}
+#	fi
+#done
+exec env -i TERM=$TERM /lib/ld-linux.so /sbin/switch_root /new_root ${init} "$@"
