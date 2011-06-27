@@ -1,0 +1,22 @@
+A simple script set to generate a working gzipped initramfs
+supporting root=LABEL= and root=UUID= kernel arguments.
+
+The dependencies are blkid(8) from util-linux and busybox.
+
+Scripts are based on mkinitcpio from Arch Linux:
+http://projects.archlinux.org/mkinitcpio.git
+
+Key differences are:
+- It is small!
+
+- I use it to build cpio images for kernels of other architecture
+  (i686 on x86_64).
+  If you want this to work, you need to have either lib32 libs
+  on your lib64 machine or tweak the dependency discovery
+  routine in genfiles.sh
+
+- The need for udev is replaced by 8 lines of shell.
+
+I do not need any other features now, but feel free to add :)
+
+License: GPLv2 (see original mkinitcpio tree)
